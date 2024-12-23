@@ -13,7 +13,11 @@ load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
 # Inicializar Google Earth Engine
-ee.Authenticate()
+# Escribir el token en un archivo temporal
+credentials_path = '/tmp/earthengine-credentials'
+with open(credentials_path, 'w') as f:
+    f.write(os.environ['EARTHENGINE_TOKEN'])
+# ee.Authenticate()
 ee.Initialize()
 
 # Obtener la API Key de las variables de entorno
