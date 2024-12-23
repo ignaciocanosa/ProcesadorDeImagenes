@@ -14,11 +14,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Inicializar Google Earth Engine
 # Escribir el token en un archivo temporal
-credentials_path = '/tmp/earthengine-credentials'
-with open(credentials_path, 'w') as f:
-    f.write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])
+# credentials_path = '/tmp/earthengine-credentials'
+# with open(credentials_path, 'w') as f:
+#    f.write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])
 # ee.Authenticate()
-ee.Initialize()
+ee.Initialize(credentials_path='/path/to/your/credentials')
 
 # Obtener la API Key de las variables de entorno
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
