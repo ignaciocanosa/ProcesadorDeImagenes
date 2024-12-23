@@ -5,6 +5,8 @@ from PIL import Image
 from dotenv import load_dotenv
 import os
 import io
+import json
+import tempfile
 
 
 load_dotenv()
@@ -12,13 +14,27 @@ load_dotenv()
 # Configurar el registro de errores
 logging.basicConfig(level=logging.DEBUG)
 
-# Inicializar Google Earth Engine
-# Escribir el token en un archivo temporal
-# credentials_path = '/tmp/earthengine-credentials'
-# with open(credentials_path, 'w') as f:
-#    f.write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])
+# Cargar el contenido de la variable de entorno
+service_account_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
+if not service_account_json:
+    raise ValueError("La variable de entorno GOOGLE_APPLICATION_CREDENTIALS_JSON no está configurada.")
+
+# Crear un archivo temporal con el contenido del JSON
+with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_cred_file:
+    temp_cred_file.write(service_account_json.encode())  # Escribir el contenido
+    temp_cred_file_path = temp_cred_file.name  # Obtener la ruta del archivo
+
+# Autenticar usando ServiceAccountCredentials
+try:
+    credentials = ee.ServiceAccountCredentials(None, temp_cred_file_path)
+    ee.Initialize(credentials)
+finally:
+    # Eliminar el archivo temporal después de la inicialización
+    os.remove(temp_cred_file_path)
+
 # ee.Authenticate()
-ee.Initialize(credentials_path='/etc/secrets/credentials')
+# ee.Initialize()
 
 # Obtener la API Key de las variables de entorno
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
