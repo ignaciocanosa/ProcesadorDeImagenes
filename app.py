@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 # with open(credentials_path, 'w') as f:
 #    f.write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])
 # ee.Authenticate()
-ee.Initialize(credentials_path='/path/to/your/credentials')
+ee.Initialize(credentials_path='/etc/secrets/credentials')
 
 # Obtener la API Key de las variables de entorno
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
