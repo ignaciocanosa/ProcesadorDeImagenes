@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 # Escribir el token en un archivo temporal
 credentials_path = '/tmp/earthengine-credentials'
 with open(credentials_path, 'w') as f:
-    f.write(os.environ['EARTHENGINE_TOKEN'])
+    f.write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])
 # ee.Authenticate()
 ee.Initialize()
 
