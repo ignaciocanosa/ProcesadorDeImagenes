@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procesador de Imagenes</title>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key={{google_api_key}}&libraries=drawing"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Procesador de Imagenes Satelitales</h1>
+    </header>
+
+    <div class="container">
+        <label for="field-name">Nombre del campo:</label>
+        <input type="text" id="field-name" placeholder="Ingrese nombre del campo">
+
+        <label for="lot-name">Nombre del lote:</label>
+        <input type="text" id="lot-name" placeholder="Ingrese nombre del lote">
+
+        <label for="period-count">Cantidad de períodos:</label>
+        <input type="number" id="period-count" min="1" placeholder="Ingrese cantidad de períodos">
+        <button id="generate-periods">Generar Períodos</button>
+        <table id="periods-table">
+            <thead>
+                <tr>
+                    <th>Período</th>
+                    <th>Fecha de Inicio</th>
+                    <th>Fecha de Fin</th>
+                    <th>Descarga</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="button-container">
+            <button id="submit-btn">Calcular Max NDVI</button>
+            <button id="process-2">Proceso 2</button>
+            <button id="process-3">Proceso 3</button>
+            <button id="process-4">Proceso 4</button>
+        </div>
+        <!-- Agregar un input para cargar el archivo KMZ -->
+        <label for="kmz-file" class="custom-file-upload">
+            Elegir archivo KMZ
+        </label>
+        <input type="file" id="kmz-file" accept=".kmz" style="display:none;">
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        var map;
+        var drawingManager;
+        var currentPolygon = null; // Para almacenar el polígono actual
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: -34.5, lng: -63.0 },
+                zoom: 10,
+                mapTypeId: google.maps.MapTypeId.SATELLITE
+            });
+
+            drawingManager = new google.maps.drawing.DrawingManager({
+                drawingMode: google.maps.drawing.OverlayType.POLYGON,
+                polygonOptions: {
+                    editable: true,
+                    draggable: true
+                }
+            });
+            drawingManager.setMap(map);
+
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', function (event) {
+                // Eliminar el polígono anterior si existe
+                if (currentPolygon) {
+                    currentPolygon.setMap(null);
+                }
+
+                // Guardamos el nuevo polígono
+                currentPolygon = event.overlay;
+                currentPolygon.setEditable(true);  // Habilitamos la edición del polígono
+
+                // Eliminar el polígono con clic derecho
+                google.maps.event.addListener(currentPolygon, 'rightclick', function () {
+                    currentPolygon.setMap(null); // Elimina el polígono
+                    currentPolygon = null; // Resetea la referencia al polígono
+                });
+            });
+        }
+
+        // Función para cargar y procesar un archivo KMZ
+        function loadKMZ(file) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (event) {
+                var kmzData = event.target.result;
+
+                // Procesar el KMZ y extraer el KML
+                unzipKMZ(kmzData, function (kmlData) {
+                    // Llamamos a la función para cargar el KML y dibujar el polígono
+                    parseKML(kmlData);
+                });
+            };
+            fileReader.readAsArrayBuffer(file);  // Cambiar de readAsText a readAsArrayBuffer
+        }
+
+        // Función para descomprimir KMZ
+        function unzipKMZ(kmzData, callback) {
+            // Utilizar JSZip para descomprimir el KMZ
+            JSZip.loadAsync(kmzData).then(function (zip) {
+                var kmlFile = zip.file('doc.kml');  // Asegúrate de que este sea el nombre correcto del archivo KML dentro del KMZ
+                if (kmlFile) {
+                    kmlFile.async('text').then(callback);
+                } else {
+                    alert('No se encontró un archivo KML dentro del KMZ.');
+                }
+            }).catch(function (e) {
+                console.error('Error al descomprimir el KMZ:', e);
+            });
+        }
+
+        // Función para procesar el KML y dibujar el polígono
+        function parseKML(kmlData) {
+            var kmlDoc = new DOMParser().parseFromString(kmlData, 'application/xml');
+            var coordinates = [];
+
+            // Extraer las coordenadas de los <coordinates> en el archivo KML
+            var coordinateElements = kmlDoc.getElementsByTagName('coordinates');
+            for (var i = 0; i < coordinateElements.length; i++) {
+                var coordText = coordinateElements[i].textContent.trim();
+                var coordPairs = coordText.split(/\s+/); // Separar por espacios
+
+                coordPairs.forEach(function (pair) {
+                    var coords = pair.split(','); // Separar lat, lon
+                    var lat = parseFloat(coords[1]);
+                    var lng = parseFloat(coords[0]);
+                    coordinates.push({ lat: lat, lng: lng });
+                });
+            }
+
+            // Dibujar el polígono en el mapa
+            if (coordinates.length >= 3) {
+                var polygon = new google.maps.Polygon({
+                    paths: coordinates,
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: '#FF0000',
+                    fillOpacity: 0.35,
+                    editable: true,
+                    draggable: true
+                });
+                polygon.setMap(map);
+
+                // Asignar el polígono como editable
+                currentPolygon = polygon;
+
+                // Centrar el mapa alrededor del polígono
+                var bounds = new google.maps.LatLngBounds();
+                coordinates.forEach(function (coord) {
+                    bounds.extend(new google.maps.LatLng(coord.lat, coord.lng));
+                });
+
+                map.fitBounds(bounds);  // Ajusta el mapa para que el polígono sea visible
+            } else {
+                alert('El archivo KMZ no contiene un polígono válido o no tiene suficientes coordenadas.');
+            }
+        }
+
+
+        // Escuchar el evento de selección de archivo KMZ
+        document.getElementById('kmz-file').addEventListener('change', function (event) {
+            var file = event.target.files[0];
+            if (file) {
+                loadKMZ(file); // Cargar el KMZ cuando se selecciona un archivo
+            }
+        });
+
+        initMap();
+
+        $('#generate-periods').click(function () {
+            const count = parseInt($('#period-count').val());
+            const tableBody = $('#periods-table tbody');
+            tableBody.empty();
+
+            for (let i = 1; i <= count; i++) {
+                tableBody.append(`
+                    <tr>
+                        <td>Período ${i}</td>
+                        <td><input type="date" id="start-date-${i}" required></td>
+                        <td><input type="date" id="end-date-${i}" required></td>
+                        <td><button class="download-btn" id="download-btn-${i}" disabled>⬇</button></td>
+                    </tr>
+                `);
+            }
+        });
+
+        $('#submit-btn').click(function () {
+            const fieldName = $('#field-name').val();
+            const lotName = $('#lot-name').val();
+            const periodCount = parseInt($('#period-count').val());
+
+            if (!fieldName || !lotName || !periodCount || !currentPolygon) {
+                alert('Completa todos los campos y dibuja un polígono.');
+                return;
+            }
+
+            // Obtener el path del polígono
+            const polygonPath = currentPolygon.getPath();
+            if (!polygonPath || polygonPath.getLength() < 3) {
+                alert('Dibuja un polígono válido con al menos tres vértices.');
+                return;
+            }
+
+            // Procesar las coordenadas
+            const coordinates = [];
+            polygonPath.forEach(function (latLng) {
+                coordinates.push({ lat: latLng.lat(), lng: latLng.lng() });
+            });
+            console.log("coordinates: ", coordinates);
+
+            // Verificar los períodos
+            const periods = [];
+            for (let i = 1; i <= periodCount; i++) {
+                const startDate = $(`#start-date-${i}`).val();
+                const endDate = $(`#end-date-${i}`).val();
+                if (!startDate || !endDate) {
+                    alert(`Completa el período ${i}.`);
+                    return;
+                }
+                periods.push({ start_date: startDate, end_date: endDate });
+            }
+
+            // Preparar los datos para enviar
+            const data = {
+                field_name: fieldName,
+                lot_name: lotName,
+                periods: periods,
+                polygon: coordinates.map(coord => [coord.lng, coord.lat])
+            };
+            console.log(data);
+
+            // Llamada AJAX
+            $.ajax({
+                url: '/get-ndvi',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function (response) {
+                    if (response.results) {
+                        response.results.forEach((result, index) => {
+                            const button = $(`#download-btn-${index + 1}`);
+                            const fileName = `${fieldName}_${lotName}_${periods[index].start_date}_${periods[index].end_date}`;
+                            button.prop('disabled', false);
+                            button.addClass('ready');
+
+                            button.click(function () {
+                                const link = document.createElement('a');
+                                link.href = result.download_url;
+                                link.download = fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            });
+                        });
+                        alert('Las imágenes están listas para descargar.');
+                    }
+                },
+                error: function () {
+                    alert('Hubo un error al procesar la solicitud.');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

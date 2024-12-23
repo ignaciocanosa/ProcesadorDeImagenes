@@ -1,0 +1,153 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f7f7f7;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+header {
+    background-color: #4a148c;
+    color: #fff;
+    width: 100%;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.container {
+    max-width: 900px;
+    width: 100%;
+    background: #fff;
+    padding: 20px;
+    margin: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+    font-weight: 700;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    margin: 0 auto;
+}
+
+button {
+    background-color: #4a148c;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 100%;
+}
+
+button:hover {
+    background-color: #6a1b9a;
+}
+
+#download-link a {
+    color: #4a148c;
+    text-decoration: none;
+}
+
+#download-link a:hover {
+    text-decoration: underline;
+}
+
+#map {
+    height: 400px;
+    width: 100%;
+    margin-top: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ccc;
+    vertical-align: middle; /* Centra el contenido verticalmente */
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+td {
+    text-align: center; /* Alinea el contenido de las celdas al centro */
+}
+
+.download-btn {
+    margin: 0 auto; /* Centra el botón dentro de la celda */
+    display: block; /* Hace que el botón sea un bloque para centrarlo */
+}
+
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 1.4rem;
+    }
+
+    button {
+        width: 100%;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"] {
+        font-size: 0.9rem;
+    }
+}
+.button-container {
+    display: flex;
+    justify-content: space-between; /* Espacia los botones a lo largo de la fila */
+    gap: 10px; /* Espacio entre botones */
+    margin: 20px 0;
+}
+#kmz-file {
+    display: none; /* Ocultar el input de archivo */
+}
+
+.custom-file-upload {
+    padding: 10px 20px;
+    background-color: #4a148c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    text-align: center;
+}
+
+.custom-file-upload:hover {
+    background-color: #6a1b9a;
+}
