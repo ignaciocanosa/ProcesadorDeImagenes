@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procesador de Imagenes</title>
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key={{google_api_key}}&libraries=drawing"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{google_api_key}}&libraries=drawing"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -34,6 +33,7 @@
                     <th>Fecha de Inicio</th>
                     <th>Fecha de Fin</th>
                     <th>Descarga</th>
+                    <th>Promedio NDVI</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -182,21 +182,22 @@
         initMap();
 
         $('#generate-periods').click(function () {
-            const count = parseInt($('#period-count').val());
-            const tableBody = $('#periods-table tbody');
-            tableBody.empty();
+                const count = parseInt($('#period-count').val());
+                const tableBody = $('#periods-table tbody');
+                tableBody.empty();
 
-            for (let i = 1; i <= count; i++) {
-                tableBody.append(`
-                    <tr>
-                        <td>Período ${i}</td>
-                        <td><input type="date" id="start-date-${i}" required></td>
-                        <td><input type="date" id="end-date-${i}" required></td>
-                        <td><button class="download-btn" id="download-btn-${i}" disabled>⬇</button></td>
-                    </tr>
-                `);
-            }
-        });
+                for (let i = 1; i <= count; i++) {
+                    tableBody.append(`
+            <tr>
+                <td>Período ${i}</td>
+                <td><input type="date" id="start-date-${i}" required></td>
+                <td><input type="date" id="end-date-${i}" required></td>
+                <td><button class="download-btn" id="download-btn-${i}" disabled>⬇</button></td>
+                <td id="ndvi-${i}">N/A</td>
+            </tr>
+        `);
+                }
+            });
 
         $('#submit-btn').click(function () {
             const fieldName = $('#field-name').val();
@@ -208,21 +209,17 @@
                 return;
             }
 
-            // Obtener el path del polígono
             const polygonPath = currentPolygon.getPath();
             if (!polygonPath || polygonPath.getLength() < 3) {
                 alert('Dibuja un polígono válido con al menos tres vértices.');
                 return;
             }
 
-            // Procesar las coordenadas
             const coordinates = [];
             polygonPath.forEach(function (latLng) {
                 coordinates.push({ lat: latLng.lat(), lng: latLng.lng() });
             });
-            console.log("coordinates: ", coordinates);
 
-            // Verificar los períodos
             const periods = [];
             for (let i = 1; i <= periodCount; i++) {
                 const startDate = $(`#start-date-${i}`).val();
@@ -234,16 +231,13 @@
                 periods.push({ start_date: startDate, end_date: endDate });
             }
 
-            // Preparar los datos para enviar
             const data = {
                 field_name: fieldName,
                 lot_name: lotName,
                 periods: periods,
                 polygon: coordinates.map(coord => [coord.lng, coord.lat])
             };
-            console.log(data);
 
-            // Llamada AJAX
             $.ajax({
                 url: '/get-ndvi',
                 type: 'POST',
@@ -253,9 +247,12 @@
                     if (response.results) {
                         response.results.forEach((result, index) => {
                             const button = $(`#download-btn-${index + 1}`);
+                            const ndviCell = $(`#ndvi-${index + 1}`);
                             const fileName = `${fieldName}_${lotName}_${periods[index].start_date}_${periods[index].end_date}`;
+
                             button.prop('disabled', false);
                             button.addClass('ready');
+                            ndviCell.text(result.mean_ndvi.toFixed(2)); // Actualiza el promedio NDVI
 
                             button.click(function () {
                                 const link = document.createElement('a');

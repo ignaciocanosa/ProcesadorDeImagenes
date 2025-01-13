@@ -62,14 +62,30 @@ def get_max_ndvi_images(polygon_coords, start_date, end_date):
             ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')
             return image.addBands(ndvi).clip(polygon)
 
-        # Convertir bandas a Float32
-        def convert_to_float(image):
-            return image.select(['NDVI']).float()
+        # Calcular NDVI y mapearlo
+        with_ndvi = sentinel_images.map(add_ndvi)
 
-        with_ndvi = sentinel_images.map(add_ndvi).map(convert_to_float)
+        # Función para calcular la suma de NDVI dentro del polígono
+        def add_ndvi_sum(image):
+            ndvi_sum = image.select('NDVI').reduceRegion(
+                reducer=ee.Reducer.sum(),
+                geometry=polygon,
+                scale=10
+            ).get('NDVI')
+            return image.set('NDVI_SUM', ndvi_sum)
 
-        # Seleccionar la imagen con el máximo NDVI
-        max_ndvi_image = with_ndvi.qualityMosaic('NDVI')
+        # Añadir la suma de NDVI a cada imagen
+        with_ndvi_sum = with_ndvi.map(add_ndvi_sum)
+
+        # Ordenar imágenes por la suma de NDVI y seleccionar la mejor
+        max_ndvi_image = with_ndvi_sum.sort('NDVI_SUM', False).first()
+
+        # Obtener el valor del promedio de NDVI
+        mean_ndvi = max_ndvi_image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=polygon,
+            scale=10
+        ).get('NDVI').getInfo()
 
         # Establecer la visualización con los colores deseados
         visualization_params = {
@@ -99,11 +115,11 @@ def get_max_ndvi_images(polygon_coords, start_date, end_date):
         date = start_date.replace('-', '')  # Generar una fecha base para el nombre del archivo
         filename = f"ndvi_{date}.tif"
 
-        return url_png, tiff_url, filename
+        return url_png, tiff_url, filename, mean_ndvi
 
     except Exception as e:
         logging.error(f"Error al obtener la imagen NDVI: {e}")
-        return None, None, None
+        return None, None, None, None
 
 
 @app.route('/get-ndvi', methods=['POST'])
@@ -120,7 +136,7 @@ def fetch_ndvi():
         for period in periods:
             start_date = period['start_date']
             end_date = period['end_date']
-            png_url, tiff_url, filename = get_max_ndvi_images(polygon_coords, start_date, end_date)
+            png_url, tiff_url, filename, mean_ndvi = get_max_ndvi_images(polygon_coords, start_date, end_date)
 
             if png_url and tiff_url and filename:
                 results.append({
@@ -128,7 +144,8 @@ def fetch_ndvi():
                     'end_date': end_date,
                     'image_url': png_url,
                     'download_url': tiff_url,
-                    'file_name': campo_lote+"_"+filename
+                    'file_name': campo_lote+"_"+filename,
+                    'mean_ndvi': mean_ndvi  # Promedio de NDVI
                 })
             else:
                 results.append({
