@@ -39,8 +39,8 @@
             <tbody></tbody>
         </table>
         <div class="button-container">
-            <button id="submit-btn">Calcular Max NDVI</button>
-            <button id="process-2">Proceso 2</button>
+            <button id="submit-btn">Max NDVI</button>
+            <button id="process-2">Promedio NDVI</button>
             <button id="process-3">Proceso 3</button>
             <button id="process-4">Proceso 4</button>
         </div>
@@ -271,6 +271,80 @@
                 }
             });
         });
+
+        $('#process-2').click(function () {
+            const fieldName = $('#field-name').val();
+            const lotName = $('#lot-name').val();
+            const periodCount = parseInt($('#period-count').val());
+
+            if (!fieldName || !lotName || !periodCount || !currentPolygon) {
+                alert('Completa todos los campos y dibuja un polígono.');
+                return;
+            }
+
+            const polygonPath = currentPolygon.getPath();
+            if (!polygonPath || polygonPath.getLength() < 3) {
+                alert('Dibuja un polígono válido con al menos tres vértices.');
+                return;
+            }
+
+            const coordinates = [];
+            polygonPath.forEach(function (latLng) {
+                coordinates.push({ lat: latLng.lat(), lng: latLng.lng() });
+            });
+
+            const periods = [];
+            for (let i = 1; i <= periodCount; i++) {
+                const startDate = $(`#start-date-${i}`).val();
+                const endDate = $(`#end-date-${i}`).val();
+                if (!startDate || !endDate) {
+                    alert(`Completa el período ${i}.`);
+                    return;
+                }
+                periods.push({ start_date: startDate, end_date: endDate });
+            }
+
+            const data = {
+                field_name: fieldName,
+                lot_name: lotName,
+                periods: periods,
+                polygon: coordinates.map(coord => [coord.lng, coord.lat])
+            };
+
+            $.ajax({
+                url: '/get-ndvi-promedio',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function (response) {
+                    if (response.results) {
+                        response.results.forEach((result, index) => {
+                            const button = $(`#download-btn-${index + 1}`);
+                            const ndviCell = $(`#ndvi-${index + 1}`);
+                            const fileName = `${fieldName}_${lotName}_${periods[index].start_date}_${periods[index].end_date}`;
+
+                            button.prop('disabled', false);
+                            button.addClass('ready');
+                            ndviCell.text(result.mean_ndvi.toFixed(2)); // Actualiza el promedio NDVI
+
+                            button.click(function () {
+                                const link = document.createElement('a');
+                                link.href = result.download_url;
+                                link.download = fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            });
+                        });
+                        alert('Las imágenes están listas para descargar.');
+                    }
+                },
+                error: function () {
+                    alert('Hubo un error al procesar la solicitud.');
+                }
+            });
+        });
+
     </script>
 </body>
 
